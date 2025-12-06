@@ -2,6 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
+      <module fileurl="file://$PROJECT_DIR$/../backend-barberia/.idea/backend-barberia.iml" filepath="$PROJECT_DIR$/../backend-barberia/.idea/backend-barberia.iml" />
       <module fileurl="file://$PROJECT_DIR$/.idea/frontend-barberia.iml" filepath="$PROJECT_DIR$/.idea/frontend-barberia.iml" />
     </modules>
   </component>
