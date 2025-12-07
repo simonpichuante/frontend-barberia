@@ -36,6 +36,20 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // Función para convertir las claves de un objeto (o array de objetos) a minúsculas
+    function convertKeysToLowerCase(obj) {
+        if (Array.isArray(obj)) {
+            return obj.map(item => convertKeysToLowerCase(item));
+        } else if (typeof obj === 'object' && obj !== null) {
+            return Object.keys(obj).reduce((acc, key) => {
+                const newKey = key.toLowerCase();
+                acc[newKey] = convertKeysToLowerCase(obj[key]);
+                return acc;
+            }, {});
+        }
+        return obj;
+    }
+
     async function fetchData(url) {
         const response = await fetch(url);
         if (!response.ok) {
@@ -43,7 +57,11 @@ document.addEventListener('DOMContentLoaded', () => {
             console.error("Error response body:", errorBody);
             throw new Error(`Error ${response.status} al cargar datos de ${url}`);
         }
-        return response.json();
+        const data = await response.json();
+        console.log("Datos recibidos del backend (original):", data); // <-- LOG AÑADIDO
+        const convertedData = convertKeysToLowerCase(data);
+        console.log("Datos después de convertir a minúsculas:", convertedData); // <-- LOG AÑADIDO
+        return convertedData;
     }
 
     // --- SECCIÓN CLIENTES ---
@@ -70,14 +88,14 @@ document.addEventListener('DOMContentLoaded', () => {
             clientes.forEach(cliente => {
                 const row = document.createElement('tr');
                 row.innerHTML = `
-                    <td>${cliente.RUT}</td>
-                    <td>${cliente.NOMBRE}</td>
-                    <td>${cliente.APELLIDO}</td>
-                    <td>${cliente.CORREO}</td>
-                    <td>${cliente.CELULAR}</td>
+                    <td>${cliente.rut}</td>
+                    <td>${cliente.nombre}</td>
+                    <td>${cliente.apellido}</td>
+                    <td>${cliente.correo}</td>
+                    <td>${cliente.celular}</td>
                     <td>
-                        <button class="edit-btn" data-id="${cliente.ID_CLIENTE}">Editar</button>
-                        <button class="delete-btn" data-id="${cliente.ID_CLIENTE}">Eliminar</button>
+                        <button class="edit-btn" data-id="${cliente.id_cliente}">Editar</button>
+                        <button class="delete-btn" data-id="${cliente.id_cliente}">Eliminar</button>
                     </td>`;
                 tableBody.appendChild(row);
             });
@@ -88,21 +106,21 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
     function renderClientForm(cliente = {}) {
-        const isEditing = !!cliente.ID_CLIENTE;
+        const isEditing = !!cliente.id_cliente;
         document.getElementById('form-container').innerHTML = `
             <h3>${isEditing ? 'Editar Cliente' : 'Agregar Nuevo Cliente'}</h3>
             <form id="client-form">
-                <input type="hidden" id="id_cliente" value="${cliente.ID_CLIENTE || ''}">
+                <input type="hidden" id="id_cliente" value="${cliente.id_cliente || ''}">
                 <label for="rut">RUT:</label>
-                <input type="text" id="rut" value="${cliente.RUT || ''}" required>
+                <input type="text" id="rut" value="${cliente.rut || ''}" required>
                 <label for="nombre">Nombre:</label>
-                <input type="text" id="nombre" value="${cliente.NOMBRE || ''}" required>
+                <input type="text" id="nombre" value="${cliente.nombre || ''}" required>
                 <label for="apellido">Apellido:</label>
-                <input type="text" id="apellido" value="${cliente.APELLIDO || ''}">
+                <input type="text" id="apellido" value="${cliente.apellido || ''}">
                 <label for="correo">Correo:</label>
-                <input type="email" id="correo" value="${cliente.CORREO || ''}">
+                <input type="email" id="correo" value="${cliente.correo || ''}">
                 <label for="celular">Celular:</label>
-                <input type="text" id="celular" value="${cliente.CELULAR || ''}">
+                <input type="text" id="celular" value="${cliente.celular || ''}">
                 <button type="submit">${isEditing ? 'Actualizar' : 'Guardar'}</button>
                 ${isEditing ? '<button type="button" id="cancel-edit">Cancelar</button>' : ''}
             </form>`;
@@ -165,12 +183,12 @@ document.addEventListener('DOMContentLoaded', () => {
             barberos.forEach(barbero => {
                 const row = document.createElement('tr');
                 row.innerHTML = `
-                    <td>${barbero.USUARIO}</td>
-                    <td>${barbero.NOMBRE}</td>
-                    <td>${barbero.ACTIVO === '1' ? 'Sí' : 'No'}</td>
+                    <td>${barbero.usuario}</td>
+                    <td>${barbero.nombre}</td>
+                    <td>${barbero.activo === '1' ? 'Sí' : 'No'}</td>
                     <td>
-                        <button class="edit-btn" data-id="${barbero.ID_BARBERO}">Editar</button>
-                        <button class="delete-btn" data-id="${barbero.ID_BARBERO}">Eliminar</button>
+                        <button class="edit-btn" data-id="${barbero.id_barbero}">Editar</button>
+                        <button class="delete-btn" data-id="${barbero.id_barbero}">Eliminar</button>
                     </td>`;
                 tableBody.appendChild(row);
             });
@@ -181,21 +199,21 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
     function renderBarberoForm(barbero = {}) {
-        const isEditing = !!barbero.ID_BARBERO;
+        const isEditing = !!barbero.id_barbero;
         document.getElementById('form-container').innerHTML = `
             <h3>${isEditing ? 'Editar Barbero' : 'Agregar Nuevo Barbero'}</h3>
             <form id="barbero-form">
-                <input type="hidden" id="id_barbero" value="${barbero.ID_BARBERO || ''}">
+                <input type="hidden" id="id_barbero" value="${barbero.id_barbero || ''}">
                 <label for="usuario">Usuario:</label>
-                <input type="text" id="usuario" value="${barbero.USUARIO || ''}" required>
+                <input type="text" id="usuario" value="${barbero.usuario || ''}" required>
                 <label for="nombre">Nombre:</label>
-                <input type="text" id="nombre" value="${barbero.NOMBRE || ''}" required>
+                <input type="text" id="nombre" value="${barbero.nombre || ''}" required>
                 <label for="password">Contraseña:</label>
                 <input type="password" id="password" ${isEditing ? 'placeholder="No cambiar"' : 'required'}>
                 <label for="activo">Activo:</label>
                 <select id="activo">
-                    <option value="1" ${barbero.ACTIVO === '1' ? 'selected' : ''}>Sí</option>
-                    <option value="0" ${barbero.ACTIVO === '0' ? 'selected' : ''}>No</option>
+                    <option value="1" ${barbero.activo === '1' ? 'selected' : ''}>Sí</option>
+                    <option value="0" ${barbero.activo === '0' ? 'selected' : ''}>No</option>
                 </select>
                 <button type="submit">${isEditing ? 'Actualizar' : 'Guardar'}</button>
                 ${isEditing ? '<button type="button" id="cancel-edit">Cancelar</button>' : ''}
@@ -259,12 +277,12 @@ document.addEventListener('DOMContentLoaded', () => {
             servicios.forEach(s => {
                 const row = document.createElement('tr');
                 row.innerHTML = `
-                    <td>${s.NOMBRE}</td>
-                    <td>${s.DURACION_MIN}</td>
-                    <td>$${s.PRECIO}</td>
+                    <td>${s.nombre}</td>
+                    <td>${s.duracion_min}</td>
+                    <td>$${s.precio}</td>
                     <td>
-                        <button class="edit-btn" data-id="${s.ID_SERVICIO}">Editar</button>
-                        <button class="delete-btn" data-id="${s.ID_SERVICIO}">Eliminar</button>
+                        <button class="edit-btn" data-id="${s.id_servicio}">Editar</button>
+                        <button class="delete-btn" data-id="${s.id_servicio}">Eliminar</button>
                     </td>`;
                 tableBody.appendChild(row);
             });
@@ -275,17 +293,17 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
     function renderServicioForm(servicio = {}) {
-        const isEditing = !!servicio.ID_SERVICIO;
+        const isEditing = !!servicio.id_servicio;
         document.getElementById('form-container').innerHTML = `
             <h3>${isEditing ? 'Editar Servicio' : 'Agregar Nuevo Servicio'}</h3>
             <form id="servicio-form">
-                <input type="hidden" id="id_servicio" value="${servicio.ID_SERVICIO || ''}">
+                <input type="hidden" id="id_servicio" value="${servicio.id_servicio || ''}">
                 <label for="nombre">Nombre:</label>
-                <input type="text" id="nombre" value="${servicio.NOMBRE || ''}" required>
+                <input type="text" id="nombre" value="${servicio.nombre || ''}" required>
                 <label for="duracion_min">Duración (min):</label>
-                <input type="number" id="duracion_min" value="${servicio.DURACION_MIN || ''}" required>
+                <input type="number" id="duracion_min" value="${servicio.duracion_min || ''}" required>
                 <label for="precio">Precio:</label>
-                <input type="number" id="precio" step="1" value="${servicio.PRECIO || ''}" required>
+                <input type="number" id="precio" step="1" value="${servicio.precio || ''}" required>
                 <button type="submit">${isEditing ? 'Actualizar' : 'Guardar'}</button>
                 ${isEditing ? '<button type="button" id="cancel-edit">Cancelar</button>' : ''}
             </form>`;
@@ -345,18 +363,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 fetchData(`${API_BASE_URL}/barberos`)
             ]);
             
-            const barberosMap = new Map(barberos.map(b => [b.ID_BARBERO, b.NOMBRE]));
+            const barberosMap = new Map(barberos.map(b => [b.id_barbero, b.nombre]));
 
             const tableBody = document.querySelector('#data-table tbody');
             tableBody.innerHTML = '';
             horas.forEach(h => {
                 const row = document.createElement('tr');
                 row.innerHTML = `
-                    <td>${new Date(h.FECHA_HORA).toLocaleString()}</td>
-                    <td>${barberosMap.get(h.ID_BARBERO) || 'Sin asignar'}</td>
-                    <td>${h.DISPONIBLE === '1' ? 'Sí' : 'No'}</td>
+                    <td>${new Date(h.fecha_hora).toLocaleString()}</td>
+                    <td>${barberosMap.get(h.id_barbero) || 'Sin asignar'}</td>
+                    <td>${h.disponible === '1' ? 'Sí' : 'No'}</td>
                     <td>
-                        <button class="delete-btn" data-id="${h.ID_HORA}">Eliminar</button>
+                        <button class="delete-btn" data-id="${h.id_hora}">Eliminar</button>
                     </td>`;
                 tableBody.appendChild(row);
             });
@@ -367,7 +385,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     async function renderAgendaForm() {
         const barberos = await fetchData(`${API_BASE_URL}/barberos`);
-        let barberosOptions = barberos.map(b => `<option value="${b.ID_BARBERO}">${b.NOMBRE}</option>`).join('');
+        let barberosOptions = barberos.map(b => `<option value="${b.id_barbero}">${b.nombre}</option>`).join('');
 
         document.getElementById('form-container').innerHTML = `
             <h3>Agregar Hora Disponible</h3>
@@ -425,14 +443,14 @@ document.addEventListener('DOMContentLoaded', () => {
             citas.forEach(c => {
                 const row = document.createElement('tr');
                 row.innerHTML = `
-                    <td>${c.CLIENTE_NOMBRE || 'N/A'}</td>
-                    <td>${c.SERVICIO_NOMBRE || 'N/A'}</td>
-                    <td>${c.BARBERO_NOMBRE || 'Sin Asignar'}</td>
-                    <td>${new Date(c.FECHA_PROGRAMADA).toLocaleString()}</td>
-                    <td>${c.ESTADO}</td>
+                    <td>${c.cliente_nombre || 'N/A'}</td>
+                    <td>${c.servicio_nombre || 'N/A'}</td>
+                    <td>${c.barbero_nombre || 'Sin Asignar'}</td>
+                    <td>${new Date(c.fecha_programada).toLocaleString()}</td>
+                    <td>${c.estado}</td>
                     <td>
-                        <button class="edit-btn" data-id="${c.ID_CITA}">Editar</button>
-                        <button class="delete-btn" data-id="${c.ID_CITA}">Cancelar</button>
+                        <button class="edit-btn" data-id="${c.id_cita}">Editar</button>
+                        <button class="delete-btn" data-id="${c.id_cita}">Cancelar</button>
                     </td>`;
                 tableBody.appendChild(row);
             });
@@ -443,21 +461,21 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
     async function renderCitaForm(cita = {}) {
-        const isEditing = !!cita.ID_CITA;
+        const isEditing = !!cita.id_cita;
         const [clientes, servicios, barberos] = await Promise.all([
             fetchData(`${API_BASE_URL}/clientes`),
             fetchData(`${API_BASE_URL}/servicios`),
             fetchData(`${API_BASE_URL}/barberos`)
         ]);
 
-        const clientesOptions = clientes.map(c => `<option value="${c.ID_CLIENTE}" ${cita.ID_CLIENTE == c.ID_CLIENTE ? 'selected' : ''}>${c.NOMBRE} ${c.APELLIDO}</option>`).join('');
-        const serviciosOptions = servicios.map(s => `<option value="${s.ID_SERVICIO}" ${cita.ID_SERVICIO == s.ID_SERVICIO ? 'selected' : ''}>${s.NOMBRE}</option>`).join('');
-        const barberosOptions = barberos.map(b => `<option value="${b.ID_BARBERO}" ${cita.ID_BARBERO == b.ID_BARBERO ? 'selected' : ''}>${b.NOMBRE}</option>`).join('');
+        const clientesOptions = clientes.map(c => `<option value="${c.id_cliente}" ${cita.id_cliente == c.id_cliente ? 'selected' : ''}>${c.nombre} ${c.apellido}</option>`).join('');
+        const serviciosOptions = servicios.map(s => `<option value="${s.id_servicio}" ${cita.id_servicio == s.id_servicio ? 'selected' : ''}>${s.nombre}</option>`).join('');
+        const barberosOptions = barberos.map(b => `<option value="${b.id_barbero}" ${cita.id_barbero == b.id_barbero ? 'selected' : ''}>${b.nombre}</option>`).join('');
 
         document.getElementById('form-container').innerHTML = `
             <h3>${isEditing ? 'Editar Cita' : 'Agendar Nueva Cita'}</h3>
             <form id="cita-form">
-                <input type="hidden" id="id_cita" value="${cita.ID_CITA || ''}">
+                <input type="hidden" id="id_cita" value="${cita.id_cita || ''}">
                 <label for="id_cliente">Cliente:</label>
                 <select id="id_cliente" required ${isEditing ? 'disabled' : ''}>${clientesOptions}</select>
                 <label for="id_servicio">Servicio:</label>
@@ -465,11 +483,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 <label for="id_barbero">Barbero:</label>
                 <select id="id_barbero" required>${barberosOptions}</select>
                 <label for="fecha_programada">Fecha y Hora:</label>
-                <input type="datetime-local" id="fecha_programada" value="${cita.FECHA_PROGRAMADA ? new Date(cita.FECHA_PROGRAMADA).toISOString().slice(0,16) : ''}" required>
+                <input type="datetime-local" id="fecha_programada" value="${cita.fecha_programada ? new Date(cita.fecha_programada).toISOString().slice(0,16) : ''}" required>
                 <label for="estado">Estado:</label>
-                <input type="text" id="estado" value="${cita.ESTADO || 'PENDIENTE'}" required>
+                <input type="text" id="estado" value="${cita.estado || 'PENDIENTE'}" required>
                 <label for="observaciones">Observaciones:</label>
-                <textarea id="observaciones">${cita.OBSERVACIONES || ''}</textarea>
+                <textarea id="observaciones">${cita.observaciones || ''}</textarea>
                 <button type="submit">${isEditing ? 'Actualizar' : 'Guardar'}</button>
                 ${isEditing ? '<button type="button" id="cancel-edit">Cancelar</button>' : ''}
             </form>`;
@@ -502,8 +520,8 @@ document.addEventListener('DOMContentLoaded', () => {
     async function handleEditCita(id) {
         try {
             const cita = await fetchData(`${API_BASE_URL}/citas/${id}`);
-            const cliente = await fetchData(`${API_BASE_URL}/clientes/${cita[0].ID_CLIENTE}`);
-            cita[0].CLIENTE_NOMBRE = `${cliente[0].NOMBRE} ${cliente[0].APELLIDO}`;
+            const cliente = await fetchData(`${API_BASE_URL}/clientes/${cita[0].id_cliente}`);
+            cita[0].cliente_nombre = `${cliente[0].nombre} ${cliente[0].apellido}`;
             renderCitaForm(cita[0]);
         } catch (error) { alert(error.message); }
     }
@@ -576,17 +594,17 @@ document.addEventListener('DOMContentLoaded', () => {
             if (reportType === 'servicios') {
                 table += '<thead><tr><th>Servicio</th><th>Cantidad</th></tr></thead><tbody>';
                 data.forEach(item => {
-                    table += `<tr><td>${item.SERVICIO}</td><td>${item.CANTIDAD}</td></tr>`;
+                    table += `<tr><td>${item.servicio}</td><td>${item.cantidad}</td></tr>`;
                 });
             } else if (reportType === 'barberos') {
                 table += '<thead><tr><th>Barbero</th><th>Cantidad de Citas</th></tr></thead><tbody>';
                 data.forEach(item => {
-                    table += `<tr><td>${item.NOMBRE_BARBERO}</td><td>${item.CANTIDAD}</td></tr>`;
+                    table += `<tr><td>${item.nombre_barbero}</td><td>${item.cantidad}</td></tr>`;
                 });
             } else if (reportType === 'cancelaciones') {
                 table += '<thead><tr><th>Canceladas</th><th>Totales</th><th>Tasa</th></tr></thead><tbody>';
                 data.forEach(item => {
-                    table += `<tr><td>${item.CANCELADAS}</td><td>${item.TOTALES}</td><td>${(item.TASA * 100).toFixed(2)}%</td></tr>`;
+                    table += `<tr><td>${item.canceladas}</td><td>${item.totales}</td><td>${(item.tasa * 100).toFixed(2)}%</td></tr>`;
                 });
             }
             table += '</tbody></table>';
