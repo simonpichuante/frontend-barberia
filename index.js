@@ -1,6 +1,24 @@
 document.addEventListener('DOMContentLoaded', () => {
     const mainContent = document.getElementById('main-content');
     const API_BASE_URL = 'http://localhost:3000/api';
+    const AUTH_BACKEND = 'http://localhost:3000';
+
+    // Parche de fetch (no añadimos Authorization en este modo)
+    (function(){
+        const originalFetch = window.fetch.bind(window);
+        window.fetch = async function(input, init) {
+            try {
+                return originalFetch(input, init);
+            } catch (e) { return originalFetch(input, init); }
+        };
+    })();
+
+    // estado de autenticación
+    let isAuthenticated = true;
+    // Inicio inmediato de la aplicación
+    (function init() {
+        showClientes();
+    })();
 
     // --- NAVEGACIÓN ---
     const navLinks = {
@@ -14,6 +32,7 @@ document.addEventListener('DOMContentLoaded', () => {
     Object.keys(navLinks).forEach(id => {
         document.getElementById(id).addEventListener('click', (e) => {
             e.preventDefault();
+            if (!isAuthenticated) { alert('Por favor inicia sesión para continuar'); return; }
             navLinks[id]();
         });
     });
@@ -22,8 +41,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const navReportes = document.createElement('li');
     navReportes.innerHTML = `<a href="#" id="nav-reportes">Reportes</a>`;
     document.querySelector('nav ul').appendChild(navReportes);
-    document.getElementById('nav-reportes').addEventListener('click', (e) => { e.preventDefault(); showReportes(); });
+    document.getElementById('nav-reportes').addEventListener('click', (e) => { e.preventDefault(); if (!isAuthenticated) { alert('Por favor inicia sesión para continuar'); return; } showReportes(); });
 
+    // Renderizar area de autenticación (usuario + logout)
+    // renderAuthArea ya no muestra nada en index (el HTML fue eliminado). Mantenemos una función vacía
+    function renderAuthArea(usuario) {
+        // Intencionalmente vacío: no mostramos usuario ni botón de logout en la cabecera del index.
+    }
 
     // --- UTILIDADES ---
     function updateNav(activeId) {
@@ -846,5 +870,4 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Carga inicial
-    showClientes();
 });
