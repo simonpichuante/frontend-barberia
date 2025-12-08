@@ -36,18 +36,86 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Función para convertir las claves de un objeto (o array de objetos) a minúsculas
+    // Normaliza claves de objetos a snake_case en minúsculas (maneja camelCase, PascalCase, espacios y guiones)
+    function toSnakeCaseKey(key) {
+        if (typeof key !== 'string') return key;
+        // Reemplaza espacios y guiones por guion bajo
+        let k = key.replace(/[\s-]+/g, '_');
+        // Inserta guion bajo entre minúscula y mayúscula (camel/pascal)
+        k = k.replace(/([a-z\d])([A-Z])/g, '$1_$2');
+        // Inserta guion bajo entre letras y números
+        k = k.replace(/([A-Za-z])([0-9])/g, '$1_$2').replace(/([0-9])([A-Za-z])/g, '$1_$2');
+        // Normaliza múltiples guiones bajos y pasa a minúsculas
+        k = k.replace(/__+/g, '_').toLowerCase();
+        return k;
+    }
+
+    // Función para convertir las claves de un objeto (o array de objetos) a snake_case minúsculas de forma recursiva
     function convertKeysToLowerCase(obj) {
         if (Array.isArray(obj)) {
             return obj.map(item => convertKeysToLowerCase(item));
         } else if (typeof obj === 'object' && obj !== null) {
             return Object.keys(obj).reduce((acc, key) => {
-                const newKey = key.toLowerCase();
+                const newKey = toSnakeCaseKey(key);
                 acc[newKey] = convertKeysToLowerCase(obj[key]);
                 return acc;
             }, {});
         }
         return obj;
+    }
+
+    // Utilidades para valores seguros y flags del backend
+    function isTruthyOne(v) {
+        return v === 1 || v === '1' || v === true || v === 'true';
+    }
+    function safe(v, fallback = '') {
+        return (v ?? fallback);
+    }
+    function pick(obj, keys, fallback = '') {
+        if (!obj || !Array.isArray(keys)) return fallback;
+        for (const k of keys) {
+            const val = obj[k];
+            if (val !== undefined && val !== null) return val;
+        }
+        return fallback;
+    }
+    function formatDateTime(v) {
+        if (!v) return '';
+        const d = new Date(v);
+        return isNaN(d.getTime()) ? '' : d.toLocaleString();
+    }
+    function isAvailable(v) {
+        if (isTruthyOne(v)) return true;
+        if (typeof v === 'string') {
+            const s = v.toLowerCase();
+            return s.includes('disp'); // 'disponible'
+        }
+        return false;
+    }
+
+    // Convierte cualquier entrada a arreglo
+    function asArray(data) {
+        if (Array.isArray(data)) return data;
+        if (data === null || data === undefined) return [];
+        return [data];
+    }
+
+    // Busca en profundidad el primer arreglo encontrable dentro de un objeto
+    function findFirstArrayDeep(obj, maxDepth = 5) {
+        const seen = new Set();
+        function helper(o, depth) {
+            if (!o || depth > maxDepth || seen.has(o)) return null;
+            seen.add(o);
+            if (Array.isArray(o)) return o;
+            if (typeof o === 'object') {
+                for (const val of Object.values(o)) {
+                    const found = helper(val, depth + 1);
+                    if (found) return found;
+                }
+            }
+            return null;
+        }
+        return helper(obj, 0);
     }
 
     async function fetchData(url) {
@@ -58,10 +126,38 @@ document.addEventListener('DOMContentLoaded', () => {
             throw new Error(`Error ${response.status} al cargar datos de ${url}`);
         }
         const data = await response.json();
-        console.log("Datos recibidos del backend (original):", data); // <-- LOG AÑADIDO
         const convertedData = convertKeysToLowerCase(data);
-        console.log("Datos después de convertir a minúsculas:", convertedData); // <-- LOG AÑADIDO
-        return convertedData;
+
+        function unwrapPayload(payload) {
+            if (Array.isArray(payload)) return payload;
+            if (payload && typeof payload === 'object') {
+                // Intentar claves comunes
+                const preferKeys = ['data','result','rows','items','recordset','records','lista','list','resultado','response','cursor'];
+                for (const k of preferKeys) {
+                    if (payload[k] !== undefined) {
+                        const v = payload[k];
+                        if (Array.isArray(v)) return v;
+                        if (v && typeof v === 'object') {
+                            // si el valor es un objeto que contiene un único array, devolverlo
+                            const arrVals = Object.values(v).filter(val => Array.isArray(val));
+                            if (arrVals.length === 1) return arrVals[0];
+                        }
+                    }
+                }
+                // Si el objeto tiene exactamente una propiedad que es array, devolver ese array
+                const arrays = Object.values(payload).filter(v => Array.isArray(v));
+                if (arrays.length === 1) return arrays[0];
+            }
+            return payload;
+        }
+
+        let unwrapped = unwrapPayload(convertedData);
+        if (!Array.isArray(unwrapped)) {
+            const deepArray = findFirstArrayDeep(unwrapped);
+            if (Array.isArray(deepArray)) unwrapped = deepArray;
+        }
+        // Asegura que los consumidores puedan iterar sin errores
+        return Array.isArray(unwrapped) ? unwrapped : asArray(unwrapped);
     }
 
     // --- SECCIÓN CLIENTES ---
@@ -88,14 +184,14 @@ document.addEventListener('DOMContentLoaded', () => {
             clientes.forEach(cliente => {
                 const row = document.createElement('tr');
                 row.innerHTML = `
-                    <td>${cliente.rut}</td>
-                    <td>${cliente.nombre}</td>
-                    <td>${cliente.apellido}</td>
-                    <td>${cliente.correo}</td>
-                    <td>${cliente.celular}</td>
+                    <td>${safe(pick(cliente, ['rut','rut_cliente','rut_cliente_num']))}</td>
+                    <td>${safe(pick(cliente, ['nombre','nombres','cliente_nombre','nombre_cliente']))}</td>
+                    <td>${safe(pick(cliente, ['apellido','apellidos']))}</td>
+                    <td>${safe(pick(cliente, ['correo','email','correo_electronico']))}</td>
+                    <td>${safe(pick(cliente, ['celular','telefono','telefono_movil']))}</td>
                     <td>
-                        <button class="edit-btn" data-id="${cliente.id_cliente}">Editar</button>
-                        <button class="delete-btn" data-id="${cliente.id_cliente}">Eliminar</button>
+                        <button class="edit-btn" data-id="${safe(pick(cliente, ['id_cliente','id']))}">Editar</button>
+                        <button class="delete-btn" data-id="${safe(pick(cliente, ['id_cliente','id']))}">Eliminar</button>
                     </td>`;
                 tableBody.appendChild(row);
             });
@@ -106,21 +202,22 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
     function renderClientForm(cliente = {}) {
-        const isEditing = !!cliente.id_cliente;
+        const idCli = pick(cliente, ['id_cliente','id']);
+        const isEditing = !!idCli;
         document.getElementById('form-container').innerHTML = `
             <h3>${isEditing ? 'Editar Cliente' : 'Agregar Nuevo Cliente'}</h3>
             <form id="client-form">
-                <input type="hidden" id="id_cliente" value="${cliente.id_cliente || ''}">
+                <input type="hidden" id="id_cliente" value="${safe(idCli)}">
                 <label for="rut">RUT:</label>
-                <input type="text" id="rut" value="${cliente.rut || ''}" required>
+                <input type="text" id="rut" value="${safe(pick(cliente, ['rut','rut_cliente','rut_cliente_num']))}" required>
                 <label for="nombre">Nombre:</label>
-                <input type="text" id="nombre" value="${cliente.nombre || ''}" required>
+                <input type="text" id="nombre" value="${safe(pick(cliente, ['nombre','nombres','cliente_nombre','nombre_cliente']))}" required>
                 <label for="apellido">Apellido:</label>
-                <input type="text" id="apellido" value="${cliente.apellido || ''}">
+                <input type="text" id="apellido" value="${safe(pick(cliente, ['apellido','apellidos']))}">
                 <label for="correo">Correo:</label>
-                <input type="email" id="correo" value="${cliente.correo || ''}">
+                <input type="email" id="correo" value="${safe(pick(cliente, ['correo','email','correo_electronico']))}">
                 <label for="celular">Celular:</label>
-                <input type="text" id="celular" value="${cliente.celular || ''}">
+                <input type="text" id="celular" value="${safe(pick(cliente, ['celular','telefono','telefono_movil']))}">
                 <button type="submit">${isEditing ? 'Actualizar' : 'Guardar'}</button>
                 ${isEditing ? '<button type="button" id="cancel-edit">Cancelar</button>' : ''}
             </form>`;
@@ -147,8 +244,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     async function handleEditClient(id) {
         try {
-            const cliente = await fetchData(`${API_BASE_URL}/clientes/${id}`);
-            renderClientForm(cliente[0]);
+            const cli = await fetchData(`${API_BASE_URL}/clientes/${id}`);
+            const cliente = Array.isArray(cli) ? cli[0] : cli;
+            renderClientForm(cliente);
         } catch (error) { alert(error.message); }
     }
     async function handleDeleteClient(id) {
@@ -182,13 +280,14 @@ document.addEventListener('DOMContentLoaded', () => {
             tableBody.innerHTML = '';
             barberos.forEach(barbero => {
                 const row = document.createElement('tr');
+                const idBarbero = pick(barbero, ['id_barbero','id']);
                 row.innerHTML = `
-                    <td>${barbero.usuario}</td>
-                    <td>${barbero.nombre}</td>
-                    <td>${barbero.activo === '1' ? 'Sí' : 'No'}</td>
+                    <td>${safe(pick(barbero, ['usuario','user','username']))}</td>
+                    <td>${safe(pick(barbero, ['nombre','nombre_barbero','barbero_nombre']))}</td>
+                    <td>${isTruthyOne(pick(barbero, ['activo','habilitado','estado'])) ? 'Sí' : 'No'}</td>
                     <td>
-                        <button class="edit-btn" data-id="${barbero.id_barbero}">Editar</button>
-                        <button class="delete-btn" data-id="${barbero.id_barbero}">Eliminar</button>
+                        <button class="edit-btn" data-id="${safe(idBarbero)}">Editar</button>
+                        <button class="delete-btn" data-id="${safe(idBarbero)}">Eliminar</button>
                     </td>`;
                 tableBody.appendChild(row);
             });
@@ -241,8 +340,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     async function handleEditBarbero(id) {
         try {
-            const barbero = await fetchData(`${API_BASE_URL}/barberos/${id}`);
-            renderBarberoForm(barbero[0]);
+            const res = await fetchData(`${API_BASE_URL}/barberos/${id}`);
+            const barbero = Array.isArray(res) ? res[0] : res;
+            renderBarberoForm(barbero);
         } catch (error) { alert(error.message); }
     }
     async function handleDeleteBarbero(id) {
@@ -276,13 +376,14 @@ document.addEventListener('DOMContentLoaded', () => {
             tableBody.innerHTML = '';
             servicios.forEach(s => {
                 const row = document.createElement('tr');
+                const idServicio = pick(s, ['id_servicio','id']);
                 row.innerHTML = `
-                    <td>${s.nombre}</td>
-                    <td>${s.duracion_min}</td>
-                    <td>$${s.precio}</td>
+                    <td>${safe(pick(s, ['nombre','servicio_nombre','nombre_servicio']))}</td>
+                    <td>${safe(pick(s, ['duracion_min','duracion','minutos']))}</td>
+                    <td>$${safe(pick(s, ['precio','valor','costo']), 0)}</td>
                     <td>
-                        <button class="edit-btn" data-id="${s.id_servicio}">Editar</button>
-                        <button class="delete-btn" data-id="${s.id_servicio}">Eliminar</button>
+                        <button class="edit-btn" data-id="${safe(idServicio)}">Editar</button>
+                        <button class="delete-btn" data-id="${safe(idServicio)}">Eliminar</button>
                     </td>`;
                 tableBody.appendChild(row);
             });
@@ -329,7 +430,8 @@ document.addEventListener('DOMContentLoaded', () => {
     async function handleEditServicio(id) {
         try {
             const servicio = await fetchData(`${API_BASE_URL}/servicios/${id}`);
-            renderServicioForm(servicio[0]);
+            const s = Array.isArray(servicio) ? servicio[0] : servicio;
+            renderServicioForm(s);
         } catch (error) { alert(error.message); }
     }
     async function handleDeleteServicio(id) {
@@ -362,19 +464,23 @@ document.addEventListener('DOMContentLoaded', () => {
                 fetchData(`${API_BASE_URL}/horas`),
                 fetchData(`${API_BASE_URL}/barberos`)
             ]);
-            
-            const barberosMap = new Map(barberos.map(b => [b.id_barbero, b.nombre]));
+
+            const barberosMap = new Map(barberos.map(b => [pick(b, ['id_barbero','id']), pick(b, ['nombre','nombre_barbero','barbero_nombre'])]));
 
             const tableBody = document.querySelector('#data-table tbody');
             tableBody.innerHTML = '';
             horas.forEach(h => {
+                const idBarbero = pick(h, ['id_barbero','barbero_id','id']);
+                const idHora = pick(h, ['id_hora','id']);
+                const disponible = pick(h, ['disponible','estado','libre']);
+                const fecha = pick(h, ['fecha_hora','fecha','fecha_programada']);
                 const row = document.createElement('tr');
                 row.innerHTML = `
-                    <td>${new Date(h.fecha_hora).toLocaleString()}</td>
-                    <td>${barberosMap.get(h.id_barbero) || 'Sin asignar'}</td>
-                    <td>${h.disponible === '1' ? 'Sí' : 'No'}</td>
+                    <td>${formatDateTime(fecha)}</td>
+                    <td>${safe(barberosMap.get(idBarbero), 'Sin asignar')}</td>
+                    <td>${isTruthyOne(disponible) || isAvailable(disponible) ? 'Sí' : 'No'}</td>
                     <td>
-                        <button class="delete-btn" data-id="${h.id_hora}">Eliminar</button>
+                        <button class="delete-btn" data-id="${safe(idHora)}">Eliminar</button>
                     </td>`;
                 tableBody.appendChild(row);
             });
@@ -385,7 +491,11 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     async function renderAgendaForm() {
         const barberos = await fetchData(`${API_BASE_URL}/barberos`);
-        let barberosOptions = barberos.map(b => `<option value="${b.id_barbero}">${b.nombre}</option>`).join('');
+        let barberosOptions = barberos.map(b => {
+            const id = pick(b, ['id_barbero','id']);
+            const name = pick(b, ['nombre','nombre_barbero','barbero_nombre']);
+            return `<option value="${id}">${safe(name)}</option>`;
+        }).join('');
 
         document.getElementById('form-container').innerHTML = `
             <h3>Agregar Hora Disponible</h3>
@@ -402,7 +512,7 @@ document.addEventListener('DOMContentLoaded', () => {
         e.preventDefault();
         const form = e.target;
         const data = {
-            id_agenda: 1, 
+            id_agenda: 1,
             fecha_hora: form.querySelector('#fecha_hora').value,
             id_barbero: form.querySelector('#id_barbero').value || null,
         };
@@ -437,20 +547,58 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     async function loadCitas() {
         try {
-            const citas = await fetchData(`${API_BASE_URL}/citas`);
+            const [citas, clientes, servicios, barberos] = await Promise.all([
+                fetchData(`${API_BASE_URL}/citas`),
+                fetchData(`${API_BASE_URL}/clientes`),
+                fetchData(`${API_BASE_URL}/servicios`),
+                fetchData(`${API_BASE_URL}/barberos`)
+            ]);
+
+            // Construir mapas de id -> nombre para resolver cuando el backend no envía los nombres ya unidos
+            const clientesMap = new Map(clientes.map(cl => {
+                const id = pick(cl, ['id_cliente','id']);
+                const nombre = `${safe(pick(cl, ['nombre','nombres','cliente_nombre','nombre_cliente']))} ${safe(pick(cl, ['apellido','apellidos']))}`.trim();
+                return [String(id ?? ''), nombre];
+            }));
+            const serviciosMap = new Map(servicios.map(s => {
+                const id = pick(s, ['id_servicio','id']);
+                const nombre = safe(pick(s, ['nombre','servicio_nombre','nombre_servicio']));
+                return [String(id ?? ''), nombre];
+            }));
+            const barberosMap = new Map(barberos.map(b => {
+                const id = pick(b, ['id_barbero','id']);
+                const nombre = safe(pick(b, ['nombre','nombre_barbero','barbero_nombre']));
+                return [String(id ?? ''), nombre];
+            }));
+
             const tableBody = document.querySelector('#data-table tbody');
             tableBody.innerHTML = '';
             citas.forEach(c => {
                 const row = document.createElement('tr');
+                const idCita = pick(c, ['id_cita','id']);
+
+                const idCliente = pick(c, ['id_cliente','cliente_id','id_cliente_fk','id']);
+                let clienteNombre = pick(c, ['cliente_nombre','nombre_cliente','cliente','nombre']);
+                if (!clienteNombre) clienteNombre = clientesMap.get(String(idCliente ?? '')) || '';
+
+                const idServicio = pick(c, ['id_servicio','servicio_id','id_servicio_fk']);
+                let servicioNombre = pick(c, ['servicio_nombre','nombre_servicio','servicio','nombre']);
+                if (!servicioNombre) servicioNombre = serviciosMap.get(String(idServicio ?? '')) || '';
+
+                const idBarbero = pick(c, ['id_barbero','barbero_id','id_barbero_fk']);
+                let barberoNombre = pick(c, ['barbero_nombre','nombre_barbero','barbero','nombre']);
+                if (!barberoNombre) barberoNombre = barberosMap.get(String(idBarbero ?? '')) || '';
+
+                const fecha = pick(c, ['fecha_programada','fecha','fecha_hora']);
                 row.innerHTML = `
-                    <td>${c.cliente_nombre || 'N/A'}</td>
-                    <td>${c.servicio_nombre || 'N/A'}</td>
-                    <td>${c.barbero_nombre || 'Sin Asignar'}</td>
-                    <td>${new Date(c.fecha_programada).toLocaleString()}</td>
-                    <td>${c.estado}</td>
+                    <td>${safe(clienteNombre, 'N/A')}</td>
+                    <td>${safe(servicioNombre, 'N/A')}</td>
+                    <td>${safe(barberoNombre, 'Sin Asignar')}</td>
+                    <td>${formatDateTime(fecha)}</td>
+                    <td>${safe(pick(c, ['estado','status']))}</td>
                     <td>
-                        <button class="edit-btn" data-id="${c.id_cita}">Editar</button>
-                        <button class="delete-btn" data-id="${c.id_cita}">Cancelar</button>
+                        <button class="edit-btn" data-id="${safe(idCita)}">Editar</button>
+                        <button class="delete-btn" data-id="${safe(idCita)}">Cancelar</button>
                     </td>`;
                 tableBody.appendChild(row);
             });
@@ -468,14 +616,33 @@ document.addEventListener('DOMContentLoaded', () => {
             fetchData(`${API_BASE_URL}/barberos`)
         ]);
 
-        const clientesOptions = clientes.map(c => `<option value="${c.id_cliente}" ${cita.id_cliente == c.id_cliente ? 'selected' : ''}>${c.nombre} ${c.apellido}</option>`).join('');
-        const serviciosOptions = servicios.map(s => `<option value="${s.id_servicio}" ${cita.id_servicio == s.id_servicio ? 'selected' : ''}>${s.nombre}</option>`).join('');
-        const barberosOptions = barberos.map(b => `<option value="${b.id_barbero}" ${cita.id_barbero == b.id_barbero ? 'selected' : ''}>${b.nombre}</option>`).join('');
+        const selCliente = pick(cita, ['id_cliente','cliente_id','id']);
+        const selServicio = pick(cita, ['id_servicio','servicio_id']);
+        const selBarbero = pick(cita, ['id_barbero','barbero_id']);
+
+        const clientesOptions = clientes.map(c => {
+            const id = pick(c, ['id_cliente','id']);
+            const nombre = `${safe(pick(c, ['nombre','nombres','cliente_nombre','nombre_cliente']))} ${safe(pick(c, ['apellido','apellidos']))}`.trim();
+            const selected = String(selCliente ?? '') === String(id ?? '') ? 'selected' : '';
+            return `<option value="${id}" ${selected}>${nombre}</option>`;
+        }).join('');
+        const serviciosOptions = servicios.map(s => {
+            const id = pick(s, ['id_servicio','id']);
+            const nombre = safe(pick(s, ['nombre','servicio_nombre','nombre_servicio']));
+            const selected = String(selServicio ?? '') === String(id ?? '') ? 'selected' : '';
+            return `<option value="${id}" ${selected}>${nombre}</option>`;
+        }).join('');
+        const barberosOptions = barberos.map(b => {
+            const id = pick(b, ['id_barbero','id']);
+            const nombre = safe(pick(b, ['nombre','nombre_barbero','barbero_nombre']));
+            const selected = String(selBarbero ?? '') === String(id ?? '') ? 'selected' : '';
+            return `<option value="${id}" ${selected}>${nombre}</option>`;
+        }).join('');
 
         document.getElementById('form-container').innerHTML = `
             <h3>${isEditing ? 'Editar Cita' : 'Agendar Nueva Cita'}</h3>
             <form id="cita-form">
-                <input type="hidden" id="id_cita" value="${cita.id_cita || ''}">
+                <input type="hidden" id="id_cita" value="${safe(pick(cita, ['id_cita','id']))}">
                 <label for="id_cliente">Cliente:</label>
                 <select id="id_cliente" required ${isEditing ? 'disabled' : ''}>${clientesOptions}</select>
                 <label for="id_servicio">Servicio:</label>
@@ -511,33 +678,88 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
             if (!res.ok) {
-                const err = await res.json();
-                throw new Error(err.message || 'Error al guardar la cita');
+                let msg = 'Error al guardar la cita';
+                try {
+                    const ct = res.headers.get('content-type') || '';
+                    if (ct.includes('application/json')) {
+                        const err = await res.json();
+                        msg = err.error || err.message || msg;
+                    } else {
+                        const text = await res.text();
+                        if (text) msg = text;
+                    }
+                } catch (_) { /* ignore parse errors */ }
+                throw new Error(msg);
             }
             showCitas();
         } catch (error) { alert(error.message); }
     }
     async function handleEditCita(id) {
         try {
-            const cita = await fetchData(`${API_BASE_URL}/citas/${id}`);
-            const cliente = await fetchData(`${API_BASE_URL}/clientes/${cita[0].id_cliente}`);
-            cita[0].cliente_nombre = `${cliente[0].nombre} ${cliente[0].apellido}`;
-            renderCitaForm(cita[0]);
+            const citaArr = await fetchData(`${API_BASE_URL}/citas/${id}`);
+            const cita = Array.isArray(citaArr) ? citaArr[0] : citaArr;
+            const idCliente = pick(cita, ['id_cliente','cliente_id','id']);
+            if (idCliente) {
+                const clienteArr = await fetchData(`${API_BASE_URL}/clientes/${idCliente}`);
+                const cliente = Array.isArray(clienteArr) ? clienteArr[0] : clienteArr;
+                const nombre = `${safe(pick(cliente, ['nombre','nombres','cliente_nombre','nombre_cliente']))} ${safe(pick(cliente, ['apellido','apellidos']))}`.trim();
+                cita.cliente_nombre = nombre;
+            }
+            renderCitaForm(cita);
         } catch (error) { alert(error.message); }
     }
     async function handleCancelCita(id) {
         if (!confirm('¿Cancelar esta cita?')) return;
         try {
-            const motivo = prompt("Motivo de la cancelación:", "Cancelado por usuario");
+            let motivo = prompt("Motivo de la cancelación:", "Cancelado por usuario");
             if (motivo === null) return;
-            
-            await fetch(`${API_BASE_URL}/gestores/cancelar-cita`, { 
-                method: 'POST', 
-                headers: { 'Content-Type': 'application/json' }, 
-                body: JSON.stringify({ id_cita: id, motivo: motivo }) 
+            motivo = String(motivo).trim() || 'Cancelado por usuario';
+
+            // Construir payload con varias claves alternativas por compatibilidad con distintos backends
+            const idNum = Number(id);
+            if (!Number.isFinite(idNum)) throw new Error('ID de cita inválido');
+
+            const payload = {
+                // claves comunes
+                id_cita: idNum,
+                id: idNum,
+                idCita: idNum,
+                p_id_cita: idNum,
+                // motivo / observaciones
+                motivo: motivo,
+                motivo_cancelacion: motivo,
+                observaciones: motivo,
+                // estado que normalmente espera la SP PA_CITA_UPDATE
+                estado: 'CANCELADA',
+                status: 'CANCELADA'
+            };
+
+            console.debug('Enviando payload cancelar-cita:', payload);
+
+            const res = await fetch(`${API_BASE_URL}/gestores/cancelar-cita`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
             });
+
+            const rawText = await res.text().catch(() => '');
+            // intentar parsear JSON si es posible
+            let parsed = null;
+            try { parsed = rawText ? JSON.parse(rawText) : null; } catch (_) { parsed = null; }
+            console.debug('Respuesta cancelar-cita:', { status: res.status, rawText, parsed });
+
+            if (!res.ok) {
+                let msg = 'Error al cancelar la cita';
+                if (parsed) msg = parsed.error || parsed.message || parsed.mensaje || JSON.stringify(parsed) || msg;
+                else if (rawText) msg = rawText;
+                throw new Error(msg);
+            }
+
+            if (parsed && (parsed.mensaje || parsed.message || parsed.ok)) alert(parsed.mensaje || parsed.message || 'Cita cancelada');
+            else alert('Cita cancelada');
+
             showCitas();
-        } catch (error) { alert(error.message); }
+        } catch (error) { alert(`No se pudo cancelar la cita: ${error.message}`); }
     }
 
     // --- SECCIÓN REPORTES ---
@@ -560,7 +782,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <button id="generate-report">Generar</button>
             </div>
             <div id="report-content"></div>`;
-        
+
         document.getElementById('generate-report').addEventListener('click', generateReport);
     }
 
@@ -577,10 +799,10 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         try {
-            await fetch(`${API_BASE_URL}/reportes/${reportType}`, { 
-                method: 'POST', 
-                headers: { 'Content-Type': 'application/json' }, 
-                body: JSON.stringify({ anio, mes }) 
+            await fetch(`${API_BASE_URL}/reportes/${reportType}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ anio, mes })
             });
 
             const data = await fetchData(`${API_BASE_URL}/reportes/${reportType}?anio=${anio}&mes=${mes}`);
@@ -594,17 +816,25 @@ document.addEventListener('DOMContentLoaded', () => {
             if (reportType === 'servicios') {
                 table += '<thead><tr><th>Servicio</th><th>Cantidad</th></tr></thead><tbody>';
                 data.forEach(item => {
-                    table += `<tr><td>${item.servicio}</td><td>${item.cantidad}</td></tr>`;
+                    const nombreServ = safe(pick(item, ['servicio','nombre_servicio','nombre']), 'N/A');
+                    const cantidad = safe(pick(item, ['cantidad','total','count']), 0);
+                    table += `<tr><td>${nombreServ}</td><td>${cantidad}</td></tr>`;
                 });
             } else if (reportType === 'barberos') {
                 table += '<thead><tr><th>Barbero</th><th>Cantidad de Citas</th></tr></thead><tbody>';
                 data.forEach(item => {
-                    table += `<tr><td>${item.nombre_barbero}</td><td>${item.cantidad}</td></tr>`;
+                    const nombreBar = safe(pick(item, ['nombre_barbero','barbero','barbero_nombre','nombre']), 'N/A');
+                    const cantidad = safe(pick(item, ['cantidad','total','count']), 0);
+                    table += `<tr><td>${nombreBar}</td><td>${cantidad}</td></tr>`;
                 });
             } else if (reportType === 'cancelaciones') {
                 table += '<thead><tr><th>Canceladas</th><th>Totales</th><th>Tasa</th></tr></thead><tbody>';
                 data.forEach(item => {
-                    table += `<tr><td>${item.canceladas}</td><td>${item.totales}</td><td>${(item.tasa * 100).toFixed(2)}%</td></tr>`;
+                    const tasaVal = pick(item, ['tasa','ratio','porcentaje']);
+                    const tasa = Number(tasaVal ?? 0);
+                    const canceladas = safe(pick(item, ['canceladas','cancelados','cancel']), 0);
+                    const totales = safe(pick(item, ['totales','total']), 0);
+                    table += `<tr><td>${canceladas}</td><td>${totales}</td><td>${(isFinite(tasa) ? tasa * 100 : 0).toFixed(2)}%</td></tr>`;
                 });
             }
             table += '</tbody></table>';
