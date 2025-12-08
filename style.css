@@ -1,92 +1,97 @@
 /* --- Variables de Color y Estilos Base --- */
 :root {
-    --color-primary: #1a1a1a; /* Un negro ligeramente más suave */
-    --color-secondary: #c09f77; /* Dorado/Bronce */
-    --color-accent: #b22222; /* Rojo ladrillo */
-    --color-light: #f9f9f9; /* Blanco muy claro */
-    --color-dark-gray: #282828;
+    --color-primary: #111827; /* oscuro profundo */
+    --color-secondary: #f59e0b; /* ámbar vibrante */
+    --color-accent: #ef4444; /* rojo vivo */
+    --color-accent-2: #06b6d4; /* turquesa para acentos */
+    --color-light: #f8fafc; /* claro */
+    --color-dark-gray: #374151;
+    --bg-grad-1: linear-gradient(120deg,#fff7ed 0%, #fff1f2 50%, #f0f9ff 100%);
+    --glass: rgba(255,255,255,0.6);
     --font-primary: 'Roboto', -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
 }
 
+/* Fondo general con degradado suave y textura ligera */
 body {
     font-family: var(--font-primary);
     margin: 0;
-    background-color: var(--color-light);
-    color: #333;
+    background: radial-gradient(circle at 10% 10%, rgba(6,182,212,0.06), transparent 20%), radial-gradient(circle at 90% 90%, rgba(245,158,11,0.04), transparent 20%), #fff;
+    color: #111;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
 }
 
 /* --- Header --- */
 header {
-    background-color: var(--color-primary);
+    background: linear-gradient(90deg, rgba(17,24,39,1) 0%, rgba(16,185,129,0.03) 100%);
     color: var(--color-light);
-    padding: 1.5rem 1rem;
-    text-align: center;
-    border-bottom: 3px solid var(--color-secondary);
+    padding: 1rem 1rem 0.5rem;
+    border-bottom: 4px solid var(--color-secondary);
 }
 
-header h1 {
-    font-family: var(--font-primary);
-    font-weight: 700;
-    font-size: 2.5rem;
-    margin: 0;
-    color: #fff;
-    text-shadow: none;
+.header-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
 }
 
-header p {
-    margin: 0.2rem 0 0;
-    color: #ccc;
-    font-size: 1.1rem;
-    font-weight: 400;
-}
+.brand h1 { margin: 0; font-size: 1.6rem; color: #fff; }
+.brand p { margin: 0; color: #d1d5db; }
+
+/* Contenedor para el área de autenticación (login/usuario) */
+.auth-area { display: flex; align-items: center; gap: 0.75rem; }
+.auth-logged { background: linear-gradient(90deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02)); padding: 0.4rem 0.6rem; border-radius: 999px; color: #fff; font-weight:500; }
+.auth-logged button { margin-left: 0.6rem; background: transparent; border: 1px solid rgba(255,255,255,0.15); color: #fff; padding: 0.25rem 0.5rem; border-radius: 6px; cursor:pointer; }
+
+/* --- Hero --- */
+.hero { position: relative; margin-top: 1rem; padding: 1.5rem; overflow: visible; }
+.hero-content { display: flex; gap: 1.5rem; align-items: center; max-width: 1100px; margin: 0 auto; }
+.hero-illustration { width: 120px; height: auto; animation: float 6s ease-in-out infinite; filter: drop-shadow(0 6px 18px rgba(0,0,0,0.15)); }
+.hero h2 { color: #071133; margin: 0 0 0.5rem; font-size: 1.6rem; }
+.hero p { margin: 0 0 1rem; color: #1f2937; }
+/* Párrafo específico del hero: color más oscuro, mayor peso y sombra para máxima legibilidad */
+.hero-subtext { color: #000000 !important; font-weight: 700; font-size: 1rem; line-height: 1.4; text-shadow: 0 1px 2px rgba(0,0,0,0.18); }
+.hero-cta { display:flex; gap: 0.75rem; }
+.hero-waves { position:absolute; right: -10px; bottom: -20px; width: 420px; opacity: 0.85; transform: translateZ(0); }
+
+/* Botones del hero y globales */
+.button { background: linear-gradient(90deg, var(--color-secondary), var(--color-accent-2)); color: #081124; padding: 0.7rem 1rem; border-radius: 8px; text-decoration: none; display:inline-block; transition: transform 200ms ease, box-shadow 200ms ease; font-weight:700; }
+.button:hover { transform: translateY(-3px); box-shadow: 0 8px 24px rgba(6,182,212,0.15); }
+.button.outline { background: transparent; border: 2px solid rgba(255,255,255,0.12); color: #fff; }
+
+/* pequeños efectos globales */
+@keyframes float { 0% { transform: translateY(0); } 50% { transform: translateY(-8px); } 100% { transform: translateY(0); } }
 
 /* --- Navegación --- */
-nav ul {
-    background-color: var(--color-dark-gray);
-    margin: 0;
-    padding: 0;
-    list-style: none;
-    display: flex;
-    justify-content: center;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-}
-
-nav ul li a {
-    color: var(--color-light);
-    padding: 1rem 1.5rem;
-    text-decoration: none;
-    display: block;
-    font-weight: 500;
-    transition: background-color 0.3s, color 0.3s;
-}
-
-nav ul li a:hover, nav ul li a.active {
-    background-color: var(--color-secondary);
-    color: var(--color-primary);
-}
+nav ul { background-color: transparent; margin: 0; padding: 0.6rem; list-style: none; display: flex; justify-content: center; gap: 0.5rem; }
+nav ul li a { color: var(--color-primary); padding: 0.6rem 1rem; text-decoration: none; display: block; font-weight: 600; border-radius: 8px; }
+nav ul li a:hover, nav ul li a.active { background: linear-gradient(90deg,#fde68a, #a7f3d0); color: #0f172a; }
 
 /* --- Contenido Principal --- */
-main {
-    padding: 2rem;
-    min-height: 70vh;
-}
+main { padding: 2rem; min-height: 60vh; max-width: 1200px; margin: 0 auto; }
 
-h2 {
-    font-family: var(--font-primary);
-    font-weight: 700;
-    color: var(--color-primary);
-    border-bottom: 2px solid var(--color-secondary);
-    padding-bottom: 0.5rem;
-    margin-bottom: 2rem;
-}
+/* --- Formularios y tarjetas --- */
+form { display: grid; gap: 1rem; max-width: 560px; background: rgba(255,255,255,0.9); padding: 1.5rem; border-radius: 12px; box-shadow: 0 10px 30px rgba(16,24,40,0.06); margin-bottom: 2rem; }
 
-h3 {
-    font-family: var(--font-primary);
-    font-weight: 500;
-    color: var(--color-dark-gray);
-}
+form input, form select, form textarea, form button { padding: 0.8rem; border-radius: 8px; border: 1px solid #e6e9ee; font-family: var(--font-primary); font-size: 1rem; }
+
+form input:focus { outline: none; border-color: var(--color-accent-2); box-shadow: 0 6px 20px rgba(6,182,212,0.12); }
+
+/* Estilos específicos para páginas de login */
+.login-page { display: flex; min-height: 100vh; flex-direction: column; align-items: center; justify-content: center; gap: 1.5rem; background: linear-gradient(180deg, #fff 0%, #fff7ed 40%); }
+#login-container { display:flex; align-items:center; justify-content:center; gap:2rem; }
+.auth-box { background: linear-gradient(180deg, rgba(255,255,255,0.95), rgba(248,250,252,0.95)); padding: 1.25rem; border-radius: 12px; box-shadow: 0 12px 30px rgba(2,6,23,0.08); }
+
+/* Ilustración lateral en login */
+.login-illustration { width: 220px; max-width: 40vw; animation: float 6s linear infinite; }
+
+/* Botón primario global (mejor contraste) */
+button, .button { background: linear-gradient(90deg, var(--color-secondary), var(--color-accent)); color: #071133; border: none; cursor: pointer; padding: 0.8rem 1.2rem; font-weight: 700; border-radius: 10px; }
+button:hover { transform: translateY(-3px); }
+
+/* Pequeñas utilidades */
+.center { text-align:center; }
 
 /* --- Tablas --- */
 table {
@@ -118,81 +123,6 @@ tbody tr:nth-child(even) {
 tbody tr:hover {
     background-color: #f1f1f1;
 }
-
-/* --- Formularios --- */
-form {
-    display: grid;
-    gap: 1.2rem;
-    max-width: 600px;
-    background: #fff;
-    padding: 2rem;
-    border-radius: 8px;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-    margin-bottom: 2rem;
-}
-
-form label {
-    font-weight: 500;
-    color: var(--color-dark-gray);
-}
-
-form input, form select, form textarea, form button {
-    padding: 0.8rem;
-    border-radius: 4px;
-    border: 1px solid #ccc;
-    font-family: var(--font-primary);
-    font-size: 1rem;
-}
-
-form input:focus, form select:focus, form textarea:focus {
-    outline: none;
-    border-color: var(--color-secondary);
-    box-shadow: 0 0 5px rgba(192, 159, 119, 0.5);
-}
-
-/* --- Botones --- */
-button, .button {
-    background-color: var(--color-primary);
-    color: var(--color-light);
-    border: none;
-    cursor: pointer;
-    padding: 0.8rem 1.5rem;
-    font-weight: 500;
-    transition: background-color 0.3s;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-}
-
-button:hover {
-    background-color: #000;
-}
-
-.edit-btn {
-    background-color: var(--color-secondary);
-    color: var(--color-primary);
-}
-
-.edit-btn:hover {
-    background-color: #a8845c;
-}
-
-.delete-btn {
-    background-color: var(--color-accent);
-    color: var(--color-light);
-}
-
-.delete-btn:hover {
-    background-color: #911b1b;
-}
-
-#cancel-edit {
-    background-color: #6c757d;
-}
-
-#cancel-edit:hover {
-    background-color: #5a6268;
-}
-
 
 /* --- Footer --- */
 footer {
